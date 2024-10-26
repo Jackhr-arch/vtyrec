@@ -1,0 +1,40 @@
+[package]
+name = "vtyrec"
+version = "0.1.0"
+edition = "2021"
+
+[patch.crates-io]
+tui-term = { git = "https://github.com/a-kenji/tui-term.git" }
+portable-pty = { path = "../pty" }
+
+[dependencies]
+clap_complete = "4.5.26"
+color-eyre = "0.6.3"
+portable-pty = "0.8.1"
+ratatui = { version = "0.29.0", default-features = false, features = [
+    "crossterm",
+] }
+tracing = "0.1.40"
+tui-term = "0.1.13"
+
+[dependencies.tokio]
+version = "1.40.0"
+features = ["rt", "macros", "sync", "time", "fs", "signal"]
+
+[dependencies.tokio-stream]
+version = "0.1.16"
+features = ["sync", "signal", "io-util"]
+
+[dependencies.ttyrec]
+version = "0.4.0"
+features = ["async"]
+
+[dependencies.clap]
+version = "4.5.17"
+default-features = false
+features = ["color", "help", "usage", "suggestions", "derive"]
+
+[dependencies.crossterm]
+version = "0.28.1"
+default-features = false
+features = ["events", "event-stream"]
