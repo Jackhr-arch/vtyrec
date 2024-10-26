@@ -1,3 +1,4 @@
+use clap::Parser;
 use color_eyre::Result;
 use crossterm::event;
 use std::{
@@ -9,9 +10,27 @@ use tui_term::vt100;
 
 mod key2bytes;
 
+#[derive(Parser)]
+/// Vtyrec is a tty recorder.  It aims to be a rust impl of ttyrec, with extended functions,
+/// such as vhs-like script.
+struct Cli {
+    /// Invoke <command> when ttyrec starts.
+    ///
+    /// If the variable <SHELL> exists, the shell forked by vtyrec will be that shell.
+    /// Otherwise, 'sh' is assumed
+    #[arg(short = 'e')]
+    command: Option<std::ffi::OsString>,
+    /// Append the output to <FILE>, rather than overwriting it.
+    #[arg(short = 'a')]
+    append: bool,
+    #[arg(default_value = "tty.rec")]
+    file: std::ffi::OsString,
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     use portable_pty::{CommandBuilder, NativePtySystem, PtyPair, PtySize, PtySystem};
+    let cli = Cli::parse();
 
     color_eyre::config::HookBuilder::new().install()?;
     let mut terminal = ratatui::try_init()?;
@@ -28,7 +47,7 @@ async fn main() -> Result<()> {
         .unwrap();
     // Wait for the child to complete
     let child_exit = {
-        let mut cmd = CommandBuilder::new("bash");
+        let mut cmd = CommandBuilder::new(std::env::var_os("SHELL").unwrap_or("sh".into()));
         cmd.cwd(std::env::current_dir()?);
         let (tx, rx) = tokio::sync::oneshot::channel();
         let mut child = slave
@@ -69,13 +88,27 @@ async fn main() -> Result<()> {
         rx
     };
 
-    let writer = BufWriter::new(
+    let mut writer = BufWriter::new(
         master
             .take_writer()
             .map_err(|e| color_eyre::eyre::anyhow!("{}", e))?,
     );
+    if let Some(pgm) = cli.command {
+        writer.write_all(pgm.as_encoded_bytes())?;
+        writer.write_all(&[key2bytes::ascii::ENTER])?;
+        writer.flush()?;
+    }
+    let ttyrec_writer = ttyrec::Writer::new(
+        tokio::fs::OpenOptions::new()
+            .truncate(!cli.append) // overwrite all
+            .append(cli.append)
+            .create(true)
+            .write(true)
+            .open(cli.file)
+            .await?,
+    );
 
-    let _child_exit_code = run(&mut terminal, parser, writer, child_exit).await?;
+    let _child_exit_code = run(&mut terminal, parser, writer, child_exit, ttyrec_writer).await?;
 
     // restore terminal
     drop(terminal);
@@ -87,18 +120,11 @@ async fn run(
     parser: Arc<RwLock<vt100::Parser>>,
     mut sender: BufWriter<Box<dyn Write + Send>>,
     mut exit_status: tokio::sync::oneshot::Receiver<std::io::Result<portable_pty::ExitStatus>>,
+    mut writer: ttyrec::Writer<tokio::fs::File>,
 ) -> Result<u32> {
     use event::{Event, EventStream, KeyEventKind};
     let mut evs = EventStream::new();
-    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(2000));
-    let mut writer = ttyrec::Writer::new(
-        tokio::fs::OpenOptions::new()
-            .truncate(true) // overwrite all
-            .create(true)
-            .write(true)
-            .open("tty.rec")
-            .await?,
-    );
+    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(20));
     let mut prev_screen = parser.read().unwrap().screen().clone();
     loop {
         let now_screen = parser.read().unwrap().screen().clone();
