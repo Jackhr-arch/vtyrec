@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub enum U8Code {
     Ascii(u8),
     TriU8([u8; 3]),
@@ -6,6 +6,28 @@ pub enum U8Code {
 }
 pub trait ToBytes {
     fn into_byte_code(self) -> U8Code;
+}
+impl ToBytes for KeyEvent {
+    fn into_byte_code(self) -> U8Code {
+        let KeyEvent {
+            code, modifiers, ..
+        } = self;
+        if modifiers.contains(KeyModifiers::CONTROL) {
+            if let KeyCode::Char(ch) = code {
+                U8Code::Ascii(ascii::ctrl(ch).expect("Not in a..=z or A..=Z or 0..=9 or + or -"))
+            } else {
+                unimplemented!("Not in a..=z or A..=Z or 0..=9 or + or -")
+            }
+        } else if modifiers.contains(KeyModifiers::ALT) {
+            if let KeyCode::Char(ch) = code {
+                U8Code::TriU8(ascii::alt(ch).expect("Not in a..=z or A..=Z or 0..=9"))
+            } else {
+                unimplemented!("Not in a..=z or A..=Z or 0..=9")
+            }
+        } else {
+            code.into_byte_code()
+        }
+    }
 }
 impl ToBytes for KeyCode {
     fn into_byte_code(self) -> U8Code {
@@ -44,6 +66,32 @@ impl ToBytes for KeyCode {
     }
 }
 pub mod ascii {
+    pub fn ctrl(ch: char) -> Option<u8> {
+        if ch.is_ascii_digit() {
+            Some(ch as u8)
+        } else if ch.is_ascii_lowercase() {
+            Some(ch as u8 - 'a' as u8 + 1)
+        } else if ch.is_ascii_uppercase() {
+            Some(ch as u8 - 'A' as u8 + 1)
+        } else if ch == '+' {
+            Some(ch as u8)
+        } else if ch == '-' {
+            Some(31)
+        } else {
+            None
+        }
+    }
+    pub fn alt(ch: char) -> Option<[u8; 3]> {
+        if ch.is_ascii_digit() {
+            Some([ctrl(ch)?, 0, 0])
+        } else if ch.is_ascii_lowercase() {
+            Some([27, ch as u8, 0])
+        } else if ch.is_ascii_uppercase() {
+            Some([27, ch as u8, 0])
+        } else {
+            None
+        }
+    }
     pub const NULL: u8 = 0;
     pub const BACKSPACE: u8 = 8;
     pub const TAB: u8 = 9;
