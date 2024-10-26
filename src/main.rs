@@ -17,6 +17,7 @@ async fn main() -> Result<()> {
     let mut terminal = ratatui::try_init()?;
     let size = terminal.size()?;
 
+    let parser = Arc::new(RwLock::new(vt100::Parser::new(size.height, size.width, 0)));
     let PtyPair { slave, master } = NativePtySystem::default()
         .openpty(PtySize {
             rows: size.height,
@@ -33,16 +34,6 @@ async fn main() -> Result<()> {
         let mut child = slave
             .spawn_command(cmd)
             .map_err(|e| color_eyre::eyre::anyhow!("{}", e))?;
-        task::spawn_blocking(move || {
-            tx.send(child.wait()).unwrap();
-            drop(slave);
-        });
-        rx
-    };
-
-    let parser = Arc::new(RwLock::new(vt100::Parser::new(size.height, size.width, 0)));
-
-    {
         let mut reader = master.try_clone_reader().unwrap();
         let parser = parser.clone();
         task::spawn_blocking(move || {
@@ -51,21 +42,32 @@ async fn main() -> Result<()> {
             let mut buf = [0u8; 8192];
             let mut processed_buf = Vec::with_capacity(8192);
             loop {
-                let size = reader.read(&mut buf).unwrap();
-                if size == 0 {
+                if let Some(s) = child.try_wait().transpose() {
+                    tx.send(s).unwrap();
+                    drop(slave);
                     break;
-                }
-                if size > 0 {
-                    processed_buf.extend_from_slice(&buf[..size]);
-                    let mut parser = parser.write().unwrap();
-                    parser.process(&processed_buf);
+                } else {
+                    // A known issue:
+                    // `reader read` will block this thread, which
+                    // blocks `child try_wait`, causing oneshot send
+                    // after `reader read` finish, leading program
+                    // to shutdown after another press after `exit`
+                    let size = reader.read(&mut buf).unwrap();
+                    if size > 0 {
+                        processed_buf.extend_from_slice(&buf[..size]);
+                        let mut parser = parser.write().unwrap();
+                        parser.process(&processed_buf);
 
-                    // Clear the processed portion of the buffer
-                    processed_buf.clear();
+                        // Clear the processed portion of the buffer
+                        processed_buf.clear();
+                    } else {
+                        break;
+                    }
                 }
             }
         });
-    }
+        rx
+    };
 
     let writer = BufWriter::new(
         master
@@ -88,7 +90,7 @@ async fn run(
 ) -> Result<u32> {
     use event::{Event, EventStream, KeyEventKind};
     let mut evs = EventStream::new();
-    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(20));
+    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(2000));
     let mut writer = ttyrec::Writer::new(
         tokio::fs::OpenOptions::new()
             .truncate(true) // overwrite all
