@@ -45,7 +45,7 @@ jobs:
           cargo build --release
           mkdir artifacts
           cp target/debug/vtyrec artifacts/vtyrec.debug
-          cp target/debug/release artifacts/vtyrec.release
+          cp target/release/vtyrec artifacts/vtyrec.release
 
       - name: upload artifacts
         if: github.event_name == 'push'
