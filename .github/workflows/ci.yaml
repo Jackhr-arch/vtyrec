@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    paths: 
+      - 'src/**'
+      - '.github/workflows/**'
+      - Cargo.lock
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+        matrix:
+            os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./target
+            ~/.cargo
+          key: ci-${{ runner.os }}-${{ hashFiles('./Cargo.lock') }}
+          restore-keys: |
+            ci-${{ runner.os }}-${{ hashFiles('./Cargo.lock') }}
+            ci-${{ runner.os }}-
+
+      - name: Test
+        run: |
+          cargo test --frozen
+
+      - name: Build
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          cargo build --frozen
+          cargo build --frozen --release
+          mkdir artifacts
+          cp target/debug/vtyrec artifacts/vtyrec.debug
+          cp target/debug/release artifacts/vtyrec.release
+
+      - name: upload artifacts
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts-${{ runner.os }}
+          path: artifacts
+          retention-days: 5
+
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && ( startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/master') )}}
+
+    needs: build
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ./artifacts
+
+      - name: Tag as Continuous Integration
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          echo 'TAG=Continuous_Integration' >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          generate_release_notes: true
+          draft: ${{ startsWith(github.ref, 'refs/tags/') }}
+          prerelease : ${{ !startsWith(github.ref, 'refs/tags/') }}
+          files: |
+            artifacts/*
