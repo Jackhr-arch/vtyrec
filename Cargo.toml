@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [patch.crates-io]
-portable-pty = { path = "../pty" }
+# just for some dependency update
+portable-pty = { git = "https://github.com/wez/wezterm" }
 
 [dependencies]
 clap_complete = "4.5.26"
