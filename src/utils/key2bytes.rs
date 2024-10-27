@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+#[derive(Clone)]
 pub enum U8Code {
     Ascii(u8),
     TriU8([u8; 3]),
@@ -70,9 +71,9 @@ pub mod ascii {
         if ch.is_ascii_digit() {
             Some(ch as u8)
         } else if ch.is_ascii_lowercase() {
-            Some(ch as u8 - 'a' as u8 + 1)
+            Some(ch as u8 - b'a' + 1)
         } else if ch.is_ascii_uppercase() {
-            Some(ch as u8 - 'A' as u8 + 1)
+            Some(ch as u8 - b'A' + 1)
         } else if ch == '+' {
             Some(ch as u8)
         } else if ch == '-' {
@@ -84,15 +85,14 @@ pub mod ascii {
     pub fn alt(ch: char) -> Option<[u8; 3]> {
         if ch.is_ascii_digit() {
             Some([ctrl(ch)?, 0, 0])
-        } else if ch.is_ascii_lowercase() {
-            Some([27, ch as u8, 0])
-        } else if ch.is_ascii_uppercase() {
+        } else if ch.is_ascii_lowercase() | ch.is_ascii_uppercase() {
             Some([27, ch as u8, 0])
         } else {
             None
         }
     }
     pub const NULL: u8 = 0;
+    pub const SPACE: u8 = 32;
     pub const BACKSPACE: u8 = 8;
     pub const TAB: u8 = 9;
     pub const ENTER: u8 = 10;
