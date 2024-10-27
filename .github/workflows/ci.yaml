@@ -36,13 +36,13 @@ jobs:
 
       - name: Test
         run: |
-          cargo test --frozen
+          cargo test
 
       - name: Build
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         run: |
-          cargo build --frozen
-          cargo build --frozen --release
+          cargo build
+          cargo build --release
           mkdir artifacts
           cp target/debug/vtyrec artifacts/vtyrec.debug
           cp target/debug/release artifacts/vtyrec.release
