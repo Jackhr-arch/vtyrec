@@ -3,6 +3,10 @@ name = "vtyrec"
 version = "0.1.0"
 edition = "2021"
 
+authors = ["JackHr <jj2460596 at gmail dot com>"]
+license = "GPLv3"
+repository = "https://github.com/Jackhr-arch/vtyrec"
+
 [patch.crates-io]
 # just for some dependency update
 portable-pty = { git = "https://github.com/wez/wezterm" }
