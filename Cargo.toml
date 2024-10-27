@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [patch.crates-io]
-tui-term = { git = "https://github.com/a-kenji/tui-term.git" }
 portable-pty = { path = "../pty" }
 
 [dependencies]
@@ -15,7 +14,7 @@ ratatui = { version = "0.29.0", default-features = false, features = [
     "crossterm",
 ] }
 tracing = "0.1.40"
-tui-term = "0.1.13"
+tui-term = "0.2.0"
 
 [dependencies.tokio]
 version = "1.40.0"
