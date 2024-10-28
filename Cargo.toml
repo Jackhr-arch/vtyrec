@@ -3,9 +3,13 @@ name = "vtyrec"
 version = "0.1.0"
 edition = "2021"
 
-authors = ["JackHr <jj2460596 at gmail dot com>"]
-license = "GPLv3"
+authors = ["Jackhr <jj2460596@gmail.com>"]
+license = "GPL-3.0-only"
 repository = "https://github.com/Jackhr-arch/vtyrec"
+homepage = "https://github.com/Jackhr-arch/vtyrec"
+keywords = ["ttyrec", "terminal", "recorder"]
+categories = ["command-line-utilities"]
+description = "Vtyrec is a tty recorder.  It aims to be a rust impl of ttyrec, with extended functions, such as vhs-like script."
 
 [patch.crates-io]
 # just for some dependency update
