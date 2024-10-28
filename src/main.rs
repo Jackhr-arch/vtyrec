@@ -20,6 +20,7 @@ const DEFAULT_FILE_NAME: &str = "tty.rec";
 const DEFAULT_SHELL: &str = "sh";
 
 #[derive(Parser)]
+#[command(version=env!("CARGO_PKG_VERSION"), about, long_about)]
 /// Vtyrec is a tty recorder.  It aims to be a rust impl of ttyrec, with extended functions,
 /// such as vhs-like script.
 struct Cli {
@@ -32,6 +33,9 @@ struct Cli {
     /// Append the output to <FILE>, rather than overwriting it.
     #[arg(short = 'a')]
     append: bool,
+    /// place holder, useless for now
+    #[arg(short = 'u')]
+    with_uudecode: bool,
     #[arg(default_value = DEFAULT_FILE_NAME)]
     file: std::ffi::OsString,
     /// support vhs-like script
